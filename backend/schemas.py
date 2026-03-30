@@ -22,6 +22,51 @@ class RouteSummary(BaseModel):
     total_distance_km: Optional[float] = None
 
 
+class RouteStopPoint(BaseModel):
+    stop_id: int
+    stop_code: str
+    stop_name: str
+    stop_sequence: int
+    latitude: float
+    longitude: float
+
+
+class RouteVehicleSnapshot(BaseModel):
+    vehicle_code: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    seats_available: Optional[int] = None
+    delay_minutes: Optional[int] = None
+    delay_status: Optional[str] = None
+
+
+class RouteNetworkItem(BaseModel):
+    route_id: int
+    route_code: str
+    route_name: str
+    mode_type: str
+    total_distance_km: Optional[float] = None
+    stops: list[RouteStopPoint]
+    vehicle: Optional[RouteVehicleSnapshot] = None
+
+
+class JourneyStep(BaseModel):
+    kind: str
+    route_code: Optional[str] = None
+    route_name: Optional[str] = None
+    mode_type: Optional[str] = None
+    from_stop: str
+    to_stop: str
+    stop_count: Optional[int] = None
+
+
+class JourneyPlanResponse(BaseModel):
+    from_stop: str
+    to_stop: str
+    route_codes: list[str]
+    steps: list[JourneyStep]
+
+
 class LiveTrackingResponse(BaseModel):
     route_code: str
     vehicle_code: str

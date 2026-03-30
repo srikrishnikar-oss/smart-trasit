@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { smartRoutes } from '../data/transit'
@@ -71,14 +71,6 @@ function SidebarIcon({ kind }) {
   )
 }
 
-function formatRelativeTime(value) {
-  const diffMs = Date.now() - new Date(value).getTime()
-  const diffMin = Math.max(1, Math.round(diffMs / 60000))
-
-  if (diffMin < 60) return `${diffMin} min ago`
-  return `${Math.round(diffMin / 60)} hr ago`
-}
-
 function normalizeText(value) {
   return value.trim().toLowerCase()
 }
@@ -117,30 +109,12 @@ export default function Home() {
   const [tripHistory, setTripHistory] = useState([])
   const [liveTracking, setLiveTracking] = useState([])
   const [alerts, setAlerts] = useState([])
-  const [userLocation, setUserLocation] = useState([12.9722, 77.5937])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
-  const miniMapRef = useRef(null)
-  const miniMapInstanceRef = useRef(null)
-  const miniMapLayersRef = useRef([])
-  const busMarkersRef = useRef([])
-  const animationRef = useRef(0)
   const navigate = useNavigate()
 
   useEffect(() => {
     setTripHistory(readTripHistory())
-  }, [])
-
-  useEffect(() => {
-    if (!navigator.geolocation) return
-
-    navigator.geolocation.getCurrentPosition(
-      position => {
-        setUserLocation([position.coords.latitude, position.coords.longitude])
-      },
-      () => {},
-      { enableHighAccuracy: true, timeout: 8000 }
-    )
   }, [])
 
   useEffect(() => {
@@ -175,114 +149,6 @@ export default function Home() {
     }
   }, [])
 
-  useEffect(() => {
-    let isMounted = true
-
-    function initMap() {
-      if (!isMounted || miniMapInstanceRef.current || !miniMapRef.current || !window.L) return
-
-      const map = window.L.map(miniMapRef.current, {
-        center: userLocation,
-        zoom: 12,
-        zoomControl: false,
-        attributionControl: false,
-      })
-
-      miniMapInstanceRef.current = map
-      window.L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map)
-    }
-
-    if (window.L) {
-      initMap()
-    } else {
-      const existingLink = document.querySelector('link[data-leaflet-home="true"]')
-      if (!existingLink) {
-        const link = document.createElement('link')
-        link.rel = 'stylesheet'
-        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-        link.dataset.leafletHome = 'true'
-        document.head.appendChild(link)
-      }
-
-      const existingScript = document.querySelector('script[data-leaflet-home="true"]')
-      if (existingScript) {
-        existingScript.addEventListener('load', initMap, { once: true })
-      } else {
-        const script = document.createElement('script')
-        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-        script.dataset.leafletHome = 'true'
-        script.onload = initMap
-        document.body.appendChild(script)
-      }
-    }
-
-    return () => {
-      isMounted = false
-      if (miniMapInstanceRef.current) {
-        miniMapInstanceRef.current.remove()
-        miniMapInstanceRef.current = null
-      }
-      miniMapLayersRef.current = []
-      busMarkersRef.current = []
-    }
-  }, [])
-
-  useEffect(() => {
-    const map = miniMapInstanceRef.current
-    const L = window.L
-    if (!map || !L) return
-
-    miniMapLayersRef.current.forEach(layer => map.removeLayer(layer))
-    miniMapLayersRef.current = []
-    busMarkersRef.current = []
-
-    const userMarker = L.circleMarker(userLocation, {
-      radius: 8,
-      fillColor: '#2563eb',
-      color: '#ffffff',
-      weight: 3,
-      fillOpacity: 1,
-    }).addTo(map)
-    userMarker.bindTooltip('You are here', { direction: 'top', offset: [0, -10] })
-    miniMapLayersRef.current.push(userMarker)
-
-    liveTracking.forEach((vehicle, index) => {
-      const busMarker = L.circleMarker([vehicle.latitude, vehicle.longitude], {
-        radius: 7,
-        fillColor: vehicle.route_code.startsWith('L') || vehicle.route_code.startsWith('Y') ? '#0f766e' : '#f59e0b',
-        color: '#ffffff',
-        weight: 2,
-        fillOpacity: 1,
-      }).addTo(map)
-
-      busMarker.bindTooltip(`${vehicle.route_code} live`, { direction: 'top', offset: [0, -10] })
-      miniMapLayersRef.current.push(busMarker)
-      busMarkersRef.current.push({
-        marker: busMarker,
-        lat: vehicle.latitude,
-        lng: vehicle.longitude,
-        drift: 0.0008 + index * 0.0002,
-      })
-    })
-
-    map.setView(userLocation, 12)
-  }, [liveTracking, userLocation])
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      animationRef.current += 1
-      busMarkersRef.current.forEach((bus, index) => {
-        const phase = animationRef.current / 10 + index
-        bus.marker.setLatLng([
-          bus.lat + Math.sin(phase) * bus.drift,
-          bus.lng + Math.cos(phase) * bus.drift * 1.4,
-        ])
-      })
-    }, 1400)
-
-    return () => window.clearInterval(intervalId)
-  }, [])
-
   function swap() {
     const temp = from
     setFrom(to)
@@ -311,11 +177,9 @@ export default function Home() {
 
   function handleFindRoutes() {
     storeTripHistory(from, to)
-    const suggestedRoute = getSuggestedRoute(from, to, liveRoutes)
     const params = new URLSearchParams()
     if (from.trim()) params.set('from', from.trim())
     if (to.trim()) params.set('to', to.trim())
-    if (suggestedRoute?.id) params.set('route', suggestedRoute.id)
 
     navigate(`/map?${params.toString()}`)
   }
@@ -347,52 +211,7 @@ export default function Home() {
     })
   }, [liveTracking, routeMeta])
 
-  const suggestions = useMemo(() => {
-    if (liveRoutes.length === 0) {
-      return [
-        { title: 'Best route right now', badge: 'SMART', value: '--', detail: 'Waiting for live tracking...', tone: 'bg-blue-50 text-blue-700 border-blue-100' },
-        { title: 'Fastest route', badge: 'FAST', value: '--', detail: 'Waiting for live tracking...', tone: 'bg-amber-50 text-amber-700 border-amber-100' },
-        { title: 'Least crowded', badge: 'SEATS', value: '--', detail: 'Waiting for live tracking...', tone: 'bg-teal-50 text-teal-700 border-teal-100' },
-      ]
-    }
-
-    const bestRoute = [...liveRoutes].sort((a, b) => (a.adjustedMinutes + a.distanceKm * 0.35) - (b.adjustedMinutes + b.distanceKm * 0.35))[0]
-    const fastestRoute = [...liveRoutes].sort((a, b) => a.adjustedMinutes - b.adjustedMinutes)[0]
-    const leastCrowded = [...liveRoutes].sort((a, b) => b.freeSeatPercent - a.freeSeatPercent)[0]
-
-    return [
-      {
-        title: 'Best route right now',
-        badge: 'SMART',
-        value: `${bestRoute.adjustedMinutes} min`,
-        detail: `${bestRoute.id} - ${bestRoute.name}`,
-        tone: 'bg-blue-50 text-blue-700 border-blue-100',
-      },
-      {
-        title: 'Fastest route',
-        badge: 'FAST',
-        value: `${fastestRoute.adjustedMinutes} min`,
-        detail: `${fastestRoute.id} - delay ${fastestRoute.delayMinutes} min`,
-        tone: 'bg-amber-50 text-amber-700 border-amber-100',
-      },
-      {
-        title: 'Least crowded',
-        badge: 'SEATS',
-        value: `${leastCrowded.freeSeatPercent}% seats free`,
-        detail: `${leastCrowded.id} - ${leastCrowded.seatsAvailable} seats available`,
-        tone: 'bg-teal-50 text-teal-700 border-teal-100',
-      },
-    ]
-  }, [liveRoutes])
-
   const heroAlert = alerts[0]
-  const activeBuses = liveRoutes.filter(route => route.mode === 'BUS').length
-  const delayedRoutes = liveRoutes.filter(route => route.delayMinutes > 0).length
-  const metroRoutes = liveRoutes.filter(route => route.mode === 'METRO')
-  const metroOnTimePercent = metroRoutes.length === 0
-    ? 100
-    : Math.round((metroRoutes.filter(route => route.delayMinutes === 0).length / metroRoutes.length) * 100)
-
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <div className="w-20 bg-white border-r border-gray-100 flex flex-col items-center py-6 gap-6 fixed top-0 left-0 h-full z-10">
@@ -440,8 +259,8 @@ export default function Home() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-          <div className="xl:col-span-2 flex flex-col gap-4">
+        <div className="w-full">
+          <div className="flex flex-col gap-4">
             <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
               <div className="flex items-center gap-3 py-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-blue-600 flex-shrink-0"></span>
@@ -486,19 +305,6 @@ export default function Home() {
                   Find routes
                 </button>
               </div>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-3">
-              {suggestions.map(item => (
-                <div key={item.title} className={`rounded-xl border p-4 ${item.tone}`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-medium uppercase tracking-widest opacity-80">{item.title}</p>
-                    <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-white/70">{item.badge}</span>
-                  </div>
-                  <p className="text-lg font-bold">{item.value}</p>
-                  <p className="text-xs mt-1 opacity-80">{item.detail}</p>
-                </div>
-              ))}
             </div>
 
             <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
@@ -571,52 +377,6 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-4">
-            <div className="bg-white rounded-xl border border-gray-100 p-4">
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-3">Live stats</p>
-              <div className="flex flex-col gap-3">
-                {[
-                  { label: 'Active buses', value: String(activeBuses), color: 'text-green-600' },
-                  { label: 'Delayed routes', value: String(delayedRoutes), color: 'text-amber-600' },
-                  { label: 'Metro on time', value: `${metroOnTimePercent}%`, color: 'text-blue-600' },
-                ].map(stat => (
-                  <div key={stat.label} className="flex items-center justify-between">
-                    <span className="text-xs text-gray-400">{stat.label}</span>
-                    <span className={`text-sm font-bold ${stat.color}`}>{loading ? '--' : stat.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl border border-gray-100 p-4 overflow-hidden">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="text-xs font-medium text-gray-400 uppercase tracking-widest">Mini map preview</p>
-                  <p className="text-sm font-semibold text-gray-800 mt-1">Live vehicles near you</p>
-                </div>
-                <button
-                  onClick={() => navigate('/map')}
-                  className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg font-medium"
-                >
-                  Open map
-                </button>
-              </div>
-              <div ref={miniMapRef} className="h-64 rounded-xl overflow-hidden border border-gray-100"></div>
-              <div className="grid grid-cols-2 gap-2 mt-3">
-                <div className="rounded-lg bg-blue-50 px-3 py-2">
-                  <p className="text-[11px] uppercase tracking-widest text-blue-500 font-semibold">User</p>
-                  <p className="text-sm text-blue-900 font-medium">Location tracked</p>
-                </div>
-                <div className="rounded-lg bg-amber-50 px-3 py-2">
-                  <p className="text-[11px] uppercase tracking-widest text-amber-500 font-semibold">Fleet</p>
-                  <p className="text-sm text-amber-900 font-medium">{loading ? '--' : liveTracking.length} moving vehicle dots</p>
-                </div>
-              </div>
-              {heroAlert && (
-                <p className="text-xs text-gray-400 mt-3">Latest alert: {formatRelativeTime(heroAlert.created_at)}</p>
-              )}
-            </div>
-          </div>
         </div>
       </div>
     </div>
