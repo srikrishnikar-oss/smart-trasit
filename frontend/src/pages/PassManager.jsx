@@ -35,6 +35,7 @@ function modeLabel(mode) {
 export default function PassManager() {
   const [tab, setTab] = useState('my')
   const [passes, setPasses] = useState([])
+  const [expiringPasses, setExpiringPasses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const navigate = useNavigate()
@@ -43,8 +44,12 @@ export default function PassManager() {
     async function loadPasses() {
       try {
         setLoading(true)
-        const response = await api.get(`/passes/user/${DEMO_USER_ID}`)
-        setPasses(response.data)
+        const [passesResponse, expiringResponse] = await Promise.all([
+          api.get(`/passes/user/${DEMO_USER_ID}`),
+          api.get('/passes/expiring'),
+        ])
+        setPasses(passesResponse.data)
+        setExpiringPasses(expiringResponse.data)
         setError('')
       } catch (err) {
         setError('Unable to load passes right now.')
@@ -75,6 +80,7 @@ export default function PassManager() {
   }, [passes])
 
   const expiringPass = passesWithState.find(pass => pass.isExpiringSoon)
+  const expiringViewRows = expiringPasses.filter(pass => pass.pass_number !== expiringPass?.id)
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -115,6 +121,37 @@ export default function PassManager() {
             >
               Renew now
             </button>
+          </div>
+        </div>
+      )}
+
+      {expiringViewRows.length > 0 && (
+        <div className="px-4 mt-4">
+          <div className="bg-white border border-gray-100 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-xs text-gray-400 uppercase tracking-widest">Expiring soon</p>
+                <p className="text-sm font-semibold text-gray-800 mt-1">DB view: `vw_expiring_passes`</p>
+              </div>
+              <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full font-medium">
+                {expiringViewRows.length} active
+              </span>
+            </div>
+            <div className="flex flex-col gap-3">
+              {expiringViewRows.map(pass => (
+                <div key={pass.pass_number} className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-amber-900">{pass.pass_name}</p>
+                      <p className="text-xs text-amber-800 mt-0.5">
+                        {pass.full_name} - expires on {formatDisplayDate(pass.valid_to)}
+                      </p>
+                    </div>
+                    <span className="text-sm font-bold text-amber-700">{pass.days_left} days</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

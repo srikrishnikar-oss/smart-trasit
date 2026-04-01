@@ -123,6 +123,13 @@ export default function Complaints() {
 
       {tab === 'my' && (
         <div className="px-4 mt-4">
+          <button
+            onClick={() => navigate('/reports')}
+            className="w-full mb-3 bg-slate-900 text-white text-sm py-3 rounded-xl font-medium"
+          >
+            Open complaint analytics
+          </button>
+
           {loading && (
             <div className="bg-white rounded-xl border border-gray-100 p-4 text-sm text-gray-400">
               Loading complaints...

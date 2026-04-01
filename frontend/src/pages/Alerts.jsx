@@ -34,6 +34,7 @@ function formatRelativeTime(value) {
 export default function Alerts() {
   const [active, setActive] = useState('All')
   const [alerts, setAlerts] = useState([])
+  const [delayedVehicles, setDelayedVehicles] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const navigate = useNavigate()
@@ -42,8 +43,12 @@ export default function Alerts() {
     async function loadAlerts() {
       try {
         setLoading(true)
-        const response = await api.get('/alerts')
-        setAlerts(response.data)
+        const [alertsResponse, delayedResponse] = await Promise.all([
+          api.get('/alerts'),
+          api.get('/tracking/delayed'),
+        ])
+        setAlerts(alertsResponse.data)
+        setDelayedVehicles(delayedResponse.data)
         setError('')
       } catch (err) {
         setError('Unable to load alerts right now.')
@@ -89,6 +94,34 @@ export default function Alerts() {
       </div>
 
       <div className="px-4 mt-1">
+        {!loading && !error && delayedVehicles.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-100 p-4 mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-xs text-gray-400 uppercase tracking-widest">Delayed vehicles</p>
+                <p className="text-sm font-semibold text-gray-800 mt-1">DB view: `vw_delayed_vehicles`</p>
+              </div>
+              <span className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-full font-medium">
+                {delayedVehicles.length} delayed
+              </span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {delayedVehicles.slice(0, 4).map(vehicle => (
+                <div key={vehicle.vehicle_code} className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                  <div>
+                    <p className="text-sm font-medium text-amber-900">{vehicle.route_code} - {vehicle.route_name}</p>
+                    <p className="text-xs text-amber-700 mt-0.5">{vehicle.vehicle_code} - {vehicle.seats_available} seats available</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-amber-700">+{vehicle.delay_minutes} min</p>
+                    <p className="text-xs text-amber-600">{formatRelativeTime(vehicle.last_reported_at)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {loading && (
           <div className="bg-white rounded-xl border border-gray-100 p-4 text-sm text-gray-400">
             Loading live alerts...

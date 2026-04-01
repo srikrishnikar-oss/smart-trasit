@@ -5,6 +5,7 @@ import LiveMap from './pages/LiveMap'
 import Schedules from './pages/Schedules'
 import PassManager from './pages/PassManager'
 import Complaints from './pages/Complaints'
+import Reports from './pages/Reports'
 import Login from './pages/Login'
 import Register from './pages/Register'
 
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/schedules" element={<Schedules />} />
         <Route path="/passes" element={<PassManager />} />
         <Route path="/complaints" element={<Complaints />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
       </Routes>

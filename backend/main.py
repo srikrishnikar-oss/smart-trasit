@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db import close_pool, init_pool
-from routers import alerts, auth, complaints, health, passes, routes, tracking
+from routers import alerts, analytics, auth, complaints, health, passes, routes, tracking
 from settings import settings
 
 
@@ -37,3 +37,4 @@ app.include_router(tracking.router, prefix="/api/tracking", tags=["tracking"])
 app.include_router(alerts.router, prefix="/api/alerts", tags=["alerts"])
 app.include_router(passes.router, prefix="/api/passes", tags=["passes"])
 app.include_router(complaints.router, prefix="/api/complaints", tags=["complaints"])
+app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])

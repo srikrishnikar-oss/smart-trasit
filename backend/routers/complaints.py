@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from db import get_connection
-from schemas import ComplaintCreate, ComplaintResponse, ComplaintSummary
+from schemas import ComplaintCreate, ComplaintProcedureResponse, ComplaintResponse, ComplaintSummary
 
 router = APIRouter()
 
@@ -90,3 +90,27 @@ def create_complaint(payload: ComplaintCreate):
         complaint_status=complaint_status.getvalue()[0],
         created_at=created_at.getvalue()[0],
     )
+
+
+@router.post("/log", response_model=ComplaintProcedureResponse)
+def log_complaint(payload: ComplaintCreate):
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            output_id = cursor.var(int)
+
+            try:
+                cursor.callproc(
+                    "pr_log_complaint",
+                    [
+                        payload.user_id,
+                        payload.route_id,
+                        payload.vehicle_id,
+                        payload.complaint_category,
+                        payload.complaint_text,
+                        output_id,
+                    ],
+                )
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail=f"Complaint logging failed: {exc}") from exc
+
+    return ComplaintProcedureResponse(complaint_id=output_id.getvalue())

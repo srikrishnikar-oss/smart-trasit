@@ -98,6 +98,54 @@ class PassSummary(BaseModel):
     applicable_mode: str
 
 
+class ExpiringPassSummary(BaseModel):
+    pass_id: int
+    pass_number: str
+    full_name: str
+    pass_name: str
+    valid_from: date
+    valid_to: date
+    days_left: int
+    pass_status: str
+
+
+class PassBookingRequest(BaseModel):
+    user_id: int
+    pass_type_id: int
+    payment_method: str
+    auto_renew: str = "N"
+
+
+class PassBookingResponse(BaseModel):
+    pass_number: str
+    payment_reference: str
+
+
+class PassRenewRequest(BaseModel):
+    payment_method: str
+
+
+class LiveRouteStatusSummary(BaseModel):
+    route_id: int
+    route_code: str
+    route_name: str
+    mode_type: str
+    active_vehicle_count: int
+    last_live_report_at: datetime
+    current_delay_status: Optional[str] = None
+    max_delay_minutes: int
+
+
+class DelayedVehicleSummary(BaseModel):
+    route_code: str
+    route_name: str
+    vehicle_code: str
+    delay_minutes: int
+    delay_status: str
+    seats_available: int
+    last_reported_at: datetime
+
+
 class ComplaintCreate(BaseModel):
     user_id: int
     route_id: Optional[int] = None
@@ -119,3 +167,16 @@ class ComplaintSummary(BaseModel):
     complaint_text: str
     complaint_status: str
     created_at: datetime
+
+
+class ComplaintProcedureResponse(BaseModel):
+    complaint_id: int
+
+
+class ComplaintRouteSummary(BaseModel):
+    route_code: str
+    route_name: str
+    complaint_count: int
+    pending_count: int
+    resolved_count: int
+    latest_complaint_at: Optional[datetime] = None

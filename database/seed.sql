@@ -237,12 +237,32 @@ FROM app_users u
 JOIN pass_types p ON p.pass_name = 'Monthly Pass'
 WHERE u.email = 'sri@example.com';
 
+INSERT INTO payments (user_id, pass_id, pass_type_id, payment_reference, payment_method, payment_amount, payment_status, paid_at)
+SELECT p.user_id, p.pass_id, p.pass_type_id, 'PAY-20260312-001', 'UPI', 500, 'SUCCESS',
+       TO_TIMESTAMP('2026-03-12 08:30:00', 'YYYY-MM-DD HH24:MI:SS')
+FROM passes p
+WHERE p.pass_number = 'PASS-2026-001';
+
+INSERT INTO payments (user_id, pass_type_id, payment_reference, payment_method, payment_amount, payment_status, paid_at)
+SELECT u.user_id, pt.pass_type_id, 'PAY-20260205-001', 'CARD', 150, 'SUCCESS',
+       TO_TIMESTAMP('2026-02-05 18:45:00', 'YYYY-MM-DD HH24:MI:SS')
+FROM app_users u
+JOIN pass_types pt ON pt.pass_name = 'Weekly Pass'
+WHERE u.email = 'sri@example.com';
+
 INSERT INTO complaints (user_id, route_id, vehicle_id, complaint_category, complaint_text)
 SELECT u.user_id, r.route_id, v.vehicle_id, 'Delay', 'Train was delayed near KR Puram during the morning commute.'
 FROM app_users u
 JOIN routes r ON r.route_code = 'L1'
 JOIN vehicles v ON v.vehicle_code = 'METRO-L1-01'
 WHERE u.email = 'sri@example.com';
+
+INSERT INTO complaint_audit_log (complaint_id, old_status, new_status, remarks)
+SELECT c.complaint_id, NULL, c.complaint_status, 'Initial complaint logged during data seed'
+FROM complaints c
+WHERE c.complaint_id = (
+  SELECT MIN(complaint_id) FROM complaints
+);
 
 INSERT INTO alerts (route_id, vehicle_id, alert_type, severity_level, alert_message, expires_at)
 SELECT r.route_id, v.vehicle_id, 'DELAY', 'HIGH', 'Purple Line delayed near KR Puram. Expect 6 extra minutes.',

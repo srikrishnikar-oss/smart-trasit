@@ -81,6 +81,7 @@ export default function LiveMap() {
   const [mapError, setMapError] = useState('')
   const [routes, setRoutes] = useState([])
   const [journey, setJourney] = useState(null)
+  const [delayedVehicles, setDelayedVehicles] = useState([])
   const [loading, setLoading] = useState(true)
 
   const tripFrom = searchParams.get('from') ?? ''
@@ -93,15 +94,16 @@ export default function LiveMap() {
       try {
         if (active) setLoading(true)
 
-        const requests = [api.get('/routes/network')]
+        const requests = [api.get('/routes/network'), api.get('/tracking/delayed')]
         if (tripFrom.trim() && tripTo.trim()) {
           requests.push(api.get('/routes/plan', { params: { from: tripFrom.trim(), to: tripTo.trim() } }))
         }
 
-        const [networkResponse, journeyResponse] = await Promise.all(requests)
+        const [networkResponse, delayedResponse, journeyResponse] = await Promise.all(requests)
         if (!active) return
 
         setRoutes(networkResponse.data.map(toMapRoute))
+        setDelayedVehicles(delayedResponse.data)
         setJourney(journeyResponse?.data ?? null)
         setMapError('')
       } catch {
@@ -384,6 +386,16 @@ export default function LiveMap() {
           My location
         </button>
       </div>
+
+      {delayedVehicles.length > 0 && (
+        <div className="bg-amber-50 border-b border-amber-100 px-4 py-2 flex gap-2 overflow-x-auto">
+          {delayedVehicles.slice(0, 4).map(vehicle => (
+            <div key={vehicle.vehicle_code} className="flex-shrink-0 rounded-full border border-amber-200 bg-white px-3 py-1.5 text-xs text-amber-800">
+              {vehicle.route_code} +{vehicle.delay_minutes} min
+            </div>
+          ))}
+        </div>
+      )}
 
       {mapError ? (
         <div className="m-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
